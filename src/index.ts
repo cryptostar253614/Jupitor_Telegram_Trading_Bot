@@ -80,6 +80,13 @@ bot.on("message", async (msg) => {
 
     if (!user.token)
       return bot.sendMessage(userId, "You need to set up your wallet first!");
+    const token_balance = await getTokenBalance(
+      wallet.publicKey,
+      new PublicKey(user.token!)
+    );
+    const sol_balance = await connection.getBalance(wallet.publicKey);
+    user.token_balance = token_balance;
+    user.sol_balance = sol_balance;
 
     if (user.sol_balance < amount)
       return bot.sendMessage(
@@ -122,6 +129,7 @@ bot.onText(/💰 Buy Token/, (msg) => {
 bot.onText(/📊 Check Balance/, async (msg) => {
   const userId = msg.from!.id;
   const user = users[userId];
+  console.log(user);
   const token_balance = await getTokenBalance(
     wallet.publicKey,
     new PublicKey(user.token!)
@@ -145,12 +153,19 @@ bot.onText(/📊 Check Balance/, async (msg) => {
 });
 
 // Sell handler
-bot.onText(/💸 Sell Token/, (msg) => {
+bot.onText(/💸 Sell Token/, async (msg) => {
   const userId = msg.from!.id;
   if (!users[userId]) {
     users[userId] = { sol_balance: 0, token_balance: 0, step: "idle" }; // Ensure user is initialized
   }
   const user = users[userId];
+  const token_balance = await getTokenBalance(
+    wallet.publicKey,
+    new PublicKey(user.token!)
+  );
+  const sol_balance = await connection.getBalance(wallet.publicKey);
+  user.token_balance = token_balance;
+  user.sol_balance = sol_balance;
 
   if (!user || user.token_balance <= 0) {
     return bot.sendMessage(userId, "❌ You don't have any tokens to sell.");
@@ -276,7 +291,7 @@ async function buyCrypto(token: string, amount: number) {
   const transactionBinary = transaction.serialize();
 
   const signature = await connection.sendRawTransaction(transactionBinary, {});
-  await connection.confirmTransaction(signature, "finalized");
+  //   await connection.confirmTransaction(signature, "finalized");
 }
 
 async function sellCrypto(token: string, amount: number) {
@@ -304,16 +319,14 @@ async function sellCrypto(token: string, amount: number) {
   const transaction = VersionedTransaction.deserialize(
     Buffer.from(transactionBase64, "base64")
   );
-  console.log(transaction);
 
   transaction.sign([wallet]);
   const transactionBinary = transaction.serialize();
 
   const signature = await connection.sendRawTransaction(transactionBinary, {
-    maxRetries: 2,
     skipPreflight: true,
   });
-  await connection.confirmTransaction(signature, "finalized");
+  //   await connection.confirmTransaction(signature, "finalized");
 }
 
 async function getTokenBalance(wallet: PublicKey, mint: PublicKey) {

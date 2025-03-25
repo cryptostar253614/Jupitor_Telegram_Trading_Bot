@@ -122,7 +122,14 @@ bot.onText(/💰 Buy Token/, (msg) => {
   const userId = msg.from!.id;
   users[userId].step = "awaiting_buy";
   return bot.sendMessage(userId, "Enter the amount of SOL to swap:", {
-    reply_markup: { remove_keyboard: true },
+    reply_markup: {
+      keyboard: [
+        [{ text: "➕ Add New Token" }],
+        [{ text: "💰 Buy Token" }, { text: "💸 Sell Token" }],
+        [{ text: "📊 Check Balance" }],
+      ],
+      remove_keyboard: true,
+    },
   });
 });
 

@@ -63,6 +63,7 @@ bot.on("message", async (msg) => {
       {
         reply_markup: {
           keyboard: [
+            [{ text: "➕ Add New Token" }],
             [{ text: "💰 Buy Token" }, { text: "💸 Sell Token" }],
             [{ text: "📊 Check Balance" }],
           ],
@@ -98,6 +99,7 @@ bot.on("message", async (msg) => {
       return bot.sendMessage(userId, `✅ Successfully swap ${amount} sol!`, {
         reply_markup: {
           keyboard: [
+            [{ text: "➕ Add New Token" }],
             [{ text: "💰 Buy Token" }, { text: "💸 Sell Token" }],
             [{ text: "📊 Check Balance" }],
           ],
@@ -119,20 +121,20 @@ bot.onText(/💰 Buy Token/, (msg) => {
 
 bot.onText(/📊 Check Balance/, async (msg) => {
   const userId = msg.from!.id;
-  users[userId].step = "idle";
   const user = users[userId];
   const token_balance = await getTokenBalance(
     wallet.publicKey,
     new PublicKey(user.token!)
   );
   const sol_balance = await connection.getBalance(wallet.publicKey);
-  console.log(sol_balance);
+  user.step = "idle";
   return bot.sendMessage(
     userId,
     `Sol balance: ${sol_balance}, token balance: ${token_balance}`,
     {
       reply_markup: {
         keyboard: [
+          [{ text: "➕ Add New Token" }],
           [{ text: "💰 Buy Token" }, { text: "💸 Sell Token" }],
           [{ text: "📊 Check Balance" }],
         ],
@@ -168,6 +170,16 @@ bot.onText(/💸 Sell Token/, (msg) => {
       ],
     },
   });
+});
+
+bot.onText(/➕ Add New Token/, (msg) => {
+  const userId = msg.from!.id;
+  if (!users[userId]) {
+    users[userId] = { sol_balance: 0, token_balance: 0, step: "idle" }; // Ensure user is initialized
+  }
+  const user = users[userId];
+  user.step = "awaiting_wallet";
+  bot.sendMessage(userId, "Welcome! Set token address:");
 });
 
 // Handle Sell Callback Queries
@@ -207,7 +219,9 @@ bot.on("callback_query", async (query) => {
       return bot.answerCallbackQuery(query.id, { text: "❌ Invalid option." });
   }
 
-  const amountToSell = (user.token_balance * percentageToSell) / 100;
+  const amountToSell = Math.floor(
+    (Number(user.token_balance) * Number(percentageToSell)) / Number(100)
+  );
 
   try {
     // Call your sellCrypto function here
@@ -261,23 +275,8 @@ async function buyCrypto(token: string, amount: number) {
   transaction.sign([wallet]);
   const transactionBinary = transaction.serialize();
 
-  const signature = await connection.sendRawTransaction(transactionBinary, {
-    maxRetries: 2,
-    skipPreflight: true,
-  });
-  const confirmation = await connection.confirmTransaction(
-    signature,
-    "finalized"
-  );
-
-  if (confirmation.value.err) {
-    throw new Error(
-      `Transaction failed: ${JSON.stringify(
-        confirmation.value.err
-      )}\nhttps://solscan.io/tx/${signature}/`
-    );
-  } else
-    console.log(`Transaction successful: https://solscan.io/tx/${signature}/`);
+  const signature = await connection.sendRawTransaction(transactionBinary, {});
+  await connection.confirmTransaction(signature, "finalized");
 }
 
 async function sellCrypto(token: string, amount: number) {
@@ -314,19 +313,7 @@ async function sellCrypto(token: string, amount: number) {
     maxRetries: 2,
     skipPreflight: true,
   });
-  const confirmation = await connection.confirmTransaction(
-    signature,
-    "finalized"
-  );
-
-  if (confirmation.value.err) {
-    throw new Error(
-      `Transaction failed: ${JSON.stringify(
-        confirmation.value.err
-      )}\nhttps://solscan.io/tx/${signature}/`
-    );
-  } else
-    console.log(`Transaction successful: https://solscan.io/tx/${signature}/`);
+  await connection.confirmTransaction(signature, "finalized");
 }
 
 async function getTokenBalance(wallet: PublicKey, mint: PublicKey) {

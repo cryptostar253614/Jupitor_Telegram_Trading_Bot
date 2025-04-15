@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
+    "dev": "ts-node src/trading.ts",
     "build": "tsc"
   },
   "keywords": [],
